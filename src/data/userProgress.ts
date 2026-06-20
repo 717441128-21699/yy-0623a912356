@@ -7,8 +7,7 @@ export const initialUserProgress: UserProgress = {
   averageScore: 85,
   unlockedCategories: ['basic', 'dense'],
   achievements: ['first-checkin', 'three-days'],
-  checkInHistory: ['2026-06-18', '2026-06-19', '2026-06-20'],
-  exerciseRecords: []
+  checkInHistory: ['2026-06-18', '2026-06-19', '2026-06-20']
 };
 
 export const achievementsList: Achievement[] = [

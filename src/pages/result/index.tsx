@@ -25,7 +25,7 @@ const getDisplayText = (text: string, lineBreak?: number[]): string => {
 
 const ResultPage: React.FC = () => {
   const router = useRouter();
-  const { lastScore, exerciseRecords } = useUserStore();
+  const { lastScore, lastPlacedTexts, exerciseRecords } = useUserStore();
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
   const [placedTexts, setPlacedTexts] = useState<PlacedText[]>([]);
@@ -57,7 +57,10 @@ const ResultPage: React.FC = () => {
     if (lastScore) {
       setScoreResult(lastScore);
     }
-  }, [exerciseId, lastScore, recordId, exerciseRecords]);
+    if (lastPlacedTexts && lastPlacedTexts.length > 0) {
+      setPlacedTexts(lastPlacedTexts);
+    }
+  }, [exerciseId, lastScore, lastPlacedTexts, recordId, exerciseRecords]);
 
   const handleImageLoad = (e: any) => {
     const { width, height } = e.detail;

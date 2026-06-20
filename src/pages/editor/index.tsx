@@ -239,12 +239,7 @@ const EditorPage: React.FC = () => {
       if (!dragState.isNew) {
         const existingIndex = placedTexts.findIndex(p => p.dialogueId === dialogueId);
         if (existingIndex >= 0) {
-          const updated = [...placedTexts];
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            x: coord.x,
-            y: coord.y
-          };
+          const updated = placedTexts.filter(p => p.dialogueId !== dialogueId);
           setPlacedTexts(updated);
         }
       }
@@ -261,37 +256,9 @@ const EditorPage: React.FC = () => {
   };
 
   const handleBubbleClick = (bubbleId: string) => {
-    if (!selectedDialogue || !exercise || dragState.isDragging) return;
-    const bubble = exercise.bubbles.find(b => b.id === bubbleId);
-    if (!bubble) return;
-    const dialogue = exercise.dialogues.find(d => d.id === selectedDialogue);
-    if (!dialogue) return;
-
+    if (!selectedDialogue || !exercise) return;
     Taro.vibrateShort && Taro.vibrateShort({ type: 'light' });
-    const settings = textSettings[selectedDialogue] || { isVertical: false, fontSize: 26, letterSpacing: 2, lineBreak: [] };
-    const centerX = (bubble.x + bubble.width / 2) * scaleX;
-    const centerY = (bubble.y + bubble.height / 2) * scaleY;
-
-    const existingIndex = placedTexts.findIndex(p => p.dialogueId === selectedDialogue);
-    const newPlacedText: PlacedText = {
-      dialogueId: selectedDialogue,
-      bubbleId,
-      x: centerX,
-      y: centerY,
-      text: dialogue.text,
-      isVertical: settings.isVertical,
-      fontSize: settings.fontSize,
-      letterSpacing: settings.letterSpacing,
-      lineBreak: settings.lineBreak
-    };
-
-    if (existingIndex >= 0) {
-      const updated = [...placedTexts];
-      updated[existingIndex] = newPlacedText;
-      setPlacedTexts(updated);
-    } else {
-      setPlacedTexts([...placedTexts, newPlacedText]);
-    }
+    setSelectedDialogue(selectedDialogue);
   };
 
   const handleTextClick = (dialogueId: string) => {
@@ -414,6 +381,7 @@ const EditorPage: React.FC = () => {
 
     const percentage = Math.round((scoreResult.totalScore / scoreResult.maxScore) * 100);
     useUserStore.getState().setLastScore(scoreResult);
+    useUserStore.getState().setLastPlacedTexts([...placedTexts]);
     useUserStore.getState().completeExercise(percentage);
     useUserStore.getState().addExerciseRecord({
       exerciseId: exercise.id,
@@ -812,11 +780,11 @@ const EditorPage: React.FC = () => {
                   <View className={styles.dialogueContent}>
                     <Text className={styles.dialogueText}>{dialogue.text}</Text>
                     <Text className={styles.dialogueStatus}>
-                      {placed ? '已放置' : bubble ? `放到${bubble.type === 'speech' ? '对白' : bubble.type === 'thought' ? '心理' : bubble.type === 'narration' ? '旁白' : '拟声'}气泡` : '待放置'}
+                      {placed ? '拖出气泡可撤回' : bubble ? `拖到${bubble.type === 'speech' ? '对白' : bubble.type === 'thought' ? '心理' : bubble.type === 'narration' ? '旁白' : '拟声'}气泡` : '待放置'}
                     </Text>
                   </View>
                   <Text className={styles.dragHint}>
-                    {placed ? '✓' : '拖动'}
+                    {placed ? '拖动' : '拖'}
                   </Text>
                 </View>
               );

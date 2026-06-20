@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UserProgress, ScoreResult, ExerciseRecord } from '@/types';
+import { UserProgress, ScoreResult, ExerciseRecord, PlacedText } from '@/types';
 import { initialUserProgress } from '@/data/userProgress';
 import dayjs from 'dayjs';
 import Taro from '@tarojs/taro';
@@ -66,10 +66,12 @@ interface UserState {
   todayCheckedIn: boolean;
   currentExerciseId: string | null;
   lastScore: ScoreResult | null;
+  lastPlacedTexts: PlacedText[];
   exerciseRecords: ExerciseRecord[];
   checkIn: () => boolean;
   setCurrentExercise: (id: string) => void;
   setLastScore: (score: ScoreResult) => void;
+  setLastPlacedTexts: (texts: PlacedText[]) => void;
   completeExercise: (score: number) => void;
   isTodayCheckedIn: () => boolean;
   addExerciseRecord: (record: Omit<ExerciseRecord, 'id' | 'date'>) => void;
@@ -81,6 +83,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   todayCheckedIn: false,
   currentExerciseId: null,
   lastScore: null,
+  lastPlacedTexts: [],
   exerciseRecords: loadRecordsFromStorage(),
 
   checkIn: () => {
@@ -137,6 +140,10 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   setLastScore: (score: ScoreResult) => {
     set({ lastScore: score });
+  },
+
+  setLastPlacedTexts: (texts: PlacedText[]) => {
+    set({ lastPlacedTexts: texts });
   },
 
   completeExercise: (score: number) => {
