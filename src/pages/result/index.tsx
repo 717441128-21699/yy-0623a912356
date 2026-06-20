@@ -14,7 +14,8 @@ const ResultPage: React.FC = () => {
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  const [imageError, setImageError] = useState(false);
+  const [imageSize, setImageSize] = useState({ width: 750, height: 1000 });
 
   const exerciseId = router.params.id || 'ex-001';
 
@@ -22,6 +23,8 @@ const ResultPage: React.FC = () => {
     const ex = getExerciseById(exerciseId as string);
     if (ex) {
       setExercise(ex);
+      setImageLoaded(false);
+      setImageError(false);
     }
     if (lastScore) {
       setScoreResult(lastScore);
@@ -30,8 +33,17 @@ const ResultPage: React.FC = () => {
 
   const handleImageLoad = (e: any) => {
     const { width, height } = e.detail;
-    setImageSize({ width, height });
-    setImageLoaded(true);
+    if (width && height) {
+      setImageSize({ width, height });
+      setImageLoaded(true);
+      setImageError(false);
+    }
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
+    setImageLoaded(false);
+    setImageSize({ width: 750, height: 1000 });
   };
 
   const handleViewExample = () => {
@@ -88,18 +100,31 @@ const ResultPage: React.FC = () => {
 
         <View className={styles.imageSection}>
           <Text className={styles.sectionTitle}>问题标记</Text>
-          <View className={styles.imageWrapper}>
+          <View className={classnames(styles.imageWrapper, !imageLoaded && styles.imageLoading)}>
+            {!imageLoaded && !imageError && (
+              <View className={styles.skeleton}>
+                <View className={styles.skeletonShimmer} />
+              </View>
+            )}
+            {imageError && (
+              <View className={styles.imageError}>
+                <Text className={styles.errorIcon}>🖼️</Text>
+                <Text className={styles.errorText}>图片加载失败</Text>
+              </View>
+            )}
             <Image
-              className={styles.comicImage}
+              className={classnames(styles.comicImage, imageLoaded && styles.imageVisible)}
               src={exercise.imageUrl}
               mode='widthFix'
               onLoad={handleImageLoad}
+              onError={handleImageError}
+              lazyLoad
             />
-            {imageLoaded && scoreResult.problemBubbles.length > 0 && (
+            {scoreResult.problemBubbles.length > 0 && (
               <View className={styles.errorOverlay}>
                 {exercise.bubbles
                   .filter(b => scoreResult.problemBubbles.includes(b.id))
-                  .map((bubble) => (
+                  .map((bubble, index) => (
                     <View
                       key={bubble.id}
                       className={styles.errorBox}
@@ -111,7 +136,7 @@ const ResultPage: React.FC = () => {
                       }}
                     >
                       <View className={styles.errorLabel}>
-                        <Text>问题</Text>
+                        <Text>问题{index + 1}</Text>
                       </View>
                     </View>
                   ))}

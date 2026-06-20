@@ -38,7 +38,8 @@ const ExercisePage: React.FC = () => {
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [activeBubble, setActiveBubble] = useState<string | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  const [imageError, setImageError] = useState(false);
+  const [imageSize, setImageSize] = useState({ width: 750, height: 1000 });
 
   const exerciseId = router.params.id || 'ex-001';
 
@@ -46,6 +47,9 @@ const ExercisePage: React.FC = () => {
     const ex = getExerciseById(exerciseId as string);
     if (ex) {
       setExercise(ex);
+      setImageLoaded(false);
+      setImageError(false);
+      setActiveBubble(null);
     } else {
       Taro.showToast({
         title: '练习不存在',
@@ -56,12 +60,22 @@ const ExercisePage: React.FC = () => {
 
   const handleImageLoad = (e: any) => {
     const { width, height } = e.detail;
-    setImageSize({ width, height });
-    setImageLoaded(true);
+    if (width && height) {
+      setImageSize({ width, height });
+      setImageLoaded(true);
+      setImageError(false);
+    }
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
+    setImageLoaded(false);
+    setImageSize({ width: 750, height: 1000 });
   };
 
   const handleBubbleClick = (bubbleId: string) => {
     setActiveBubble(activeBubble === bubbleId ? null : bubbleId);
+    Taro.vibrateShort && Taro.vibrateShort({ type: 'light' });
   };
 
   const handleStartEdit = () => {
@@ -90,43 +104,71 @@ const ExercisePage: React.FC = () => {
 
   const scaleX = imageSize.width / 750;
   const scaleY = imageSize.height / 1000;
+  const displayScaleX = imageLoaded ? scaleX : 1;
+  const displayScaleY = imageLoaded ? scaleY : 1;
 
   return (
     <View className={styles.page}>
       <View className={styles.content}>
         <View className={styles.imageSection}>
           <Text className={styles.sectionTitle}>漫画原图</Text>
-          <View className={styles.imageWrapper}>
+          <View className={classnames(styles.imageWrapper, !imageLoaded && styles.imageLoading)}>
+            {!imageLoaded && !imageError && (
+              <View className={styles.skeleton}>
+                <View className={styles.skeletonShimmer} />
+                <View className={styles.skeletonBubbles}>
+                  {exercise.bubbles.map((bubble, index) => (
+                    <View
+                      key={bubble.id}
+                      className={styles.skeletonBubble}
+                      style={{
+                        left: `${bubble.x}rpx`,
+                        top: `${bubble.y}rpx`,
+                        width: `${bubble.width}rpx`,
+                        height: `${bubble.height}rpx`
+                      }}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+            {imageError && (
+              <View className={styles.imageError}>
+                <Text className={styles.errorIcon}>🖼️</Text>
+                <Text className={styles.errorText}>图片加载失败</Text>
+                <Text className={styles.errorHint}>气泡位置正常显示，不影响练习</Text>
+              </View>
+            )}
             <Image
-              className={styles.comicImage}
+              className={classnames(styles.comicImage, imageLoaded && styles.imageVisible)}
               src={exercise.imageUrl}
               mode='widthFix'
               onLoad={handleImageLoad}
+              onError={handleImageError}
+              lazyLoad
             />
-            {imageLoaded && (
-              <View className={styles.bubbleOverlay}>
-                {exercise.bubbles.map((bubble, index) => (
-                  <View
-                    key={bubble.id}
-                    className={classnames(
-                      styles.bubbleBox,
-                      activeBubble === bubble.id && styles.active
-                    )}
-                    style={{
-                      left: `${bubble.x * scaleX}rpx`,
-                      top: `${bubble.y * scaleY}rpx`,
-                      width: `${bubble.width * scaleX}rpx`,
-                      height: `${bubble.height * scaleY}rpx`
-                    }}
-                    onClick={() => handleBubbleClick(bubble.id)}
-                  >
-                    <View className={styles.bubbleNumber}>
-                      <Text>{index + 1}</Text>
-                    </View>
+            <View className={classnames(styles.bubbleOverlay, !imageLoaded && !imageError && styles.bubbleSkeleton)}>
+              {exercise.bubbles.map((bubble, index) => (
+                <View
+                  key={bubble.id}
+                  className={classnames(
+                    styles.bubbleBox,
+                    activeBubble === bubble.id && styles.active
+                  )}
+                  style={{
+                    left: `${bubble.x * displayScaleX}rpx`,
+                    top: `${bubble.y * displayScaleY}rpx`,
+                    width: `${bubble.width * displayScaleX}rpx`,
+                    height: `${bubble.height * displayScaleY}rpx`
+                  }}
+                  onClick={() => handleBubbleClick(bubble.id)}
+                >
+                  <View className={styles.bubbleNumber}>
+                    <Text>{index + 1}</Text>
                   </View>
-                ))}
-              </View>
-            )}
+                </View>
+              ))}
+            </View>
           </View>
           <View className={styles.tip}>
             <Text className={styles.tipIcon}>💡</Text>

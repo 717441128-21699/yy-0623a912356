@@ -7,6 +7,93 @@ interface ScoringContext {
   imageHeight: number;
 }
 
+interface TextBounds {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  width: number;
+  height: number;
+}
+
+const LINE_HEIGHT_RATIO = 1.4;
+
+const getDialogueText = (exercise: Exercise, dialogueId: string): string => {
+  const dialogue = exercise.dialogues.find(d => d.id === dialogueId);
+  return dialogue?.text || '';
+};
+
+const calculateTextBounds = (
+  text: string,
+  x: number,
+  y: number,
+  fontSize: number,
+  letterSpacing: number,
+  isVertical: boolean
+): TextBounds => {
+  const charCount = text.length;
+  let textWidth: number;
+  let textHeight: number;
+
+  if (isVertical) {
+    textWidth = fontSize * LINE_HEIGHT_RATIO;
+    textHeight = charCount * (fontSize + letterSpacing);
+  } else {
+    textWidth = charCount * (fontSize + letterSpacing);
+    textHeight = fontSize * LINE_HEIGHT_RATIO;
+  }
+
+  return {
+    left: x - textWidth / 2,
+    right: x + textWidth / 2,
+    top: y - textHeight / 2,
+    bottom: y + textHeight / 2,
+    width: textWidth,
+    height: textHeight
+  };
+};
+
+const getBubbleBounds = (
+  bubble: { x: number; y: number; width: number; height: number },
+  scaleX: number,
+  scaleY: number
+) => {
+  return {
+    left: bubble.x * scaleX,
+    right: (bubble.x + bubble.width) * scaleX,
+    top: bubble.y * scaleY,
+    bottom: (bubble.y + bubble.height) * scaleY,
+    width: bubble.width * scaleX,
+    height: bubble.height * scaleY,
+    centerX: (bubble.x + bubble.width / 2) * scaleX,
+    centerY: (bubble.y + bubble.height / 2) * scaleY
+  };
+};
+
+const calculateOverflow = (textBounds: TextBounds, bubbleBounds: ReturnType<typeof getBubbleBounds>) => {
+  let overflowLeft = Math.max(0, bubbleBounds.left - textBounds.left);
+  let overflowRight = Math.max(0, textBounds.right - bubbleBounds.right);
+  let overflowTop = Math.max(0, bubbleBounds.top - textBounds.top);
+  let overflowBottom = Math.max(0, textBounds.bottom - bubbleBounds.bottom);
+
+  const maxHorizontalOverflow = Math.max(overflowLeft, overflowRight);
+  const maxVerticalOverflow = Math.max(overflowTop, overflowBottom);
+  const maxOverflow = Math.max(maxHorizontalOverflow, maxVerticalOverflow);
+
+  const horizontalOverflowRatio = maxHorizontalOverflow / bubbleBounds.width;
+  const verticalOverflowRatio = maxVerticalOverflow / bubbleBounds.height;
+  const totalOverflowRatio = Math.max(horizontalOverflowRatio, verticalOverflowRatio);
+
+  return {
+    overflowLeft,
+    overflowRight,
+    overflowTop,
+    overflowBottom,
+    maxOverflow,
+    totalOverflowRatio
+  };
+};
+
 export const calculateScore = (context: ScoringContext): ScoreResult => {
   const { exercise, answers, imageWidth, imageHeight } = context;
   const items: ScoreItem[] = [];
@@ -99,33 +186,59 @@ const evaluateBoundary = (
   let score = 0;
   const maxScore = exercise.dialogues.length * 5;
 
+  const scaleX = imageWidth / 750;
+  const scaleY = imageHeight / 1000;
+
   answers.forEach(answer => {
     const bubble = exercise.bubbles.find(b => b.id === answer.bubbleId);
     if (!bubble) return;
 
-    const scaleX = imageWidth / 750;
-    const scaleY = imageHeight / 1000;
+    const text = getDialogueText(exercise, answer.dialogueId);
+    const textBounds = calculateTextBounds(
+      text,
+      answer.x,
+      answer.y,
+      answer.fontSize,
+      answer.letterSpacing,
+      answer.isVertical
+    );
+    const bubbleBounds = getBubbleBounds(bubble, scaleX, scaleY);
+    const overflow = calculateOverflow(textBounds, bubbleBounds);
 
-    const bubbleLeft = bubble.x * scaleX;
-    const bubbleTop = bubble.y * scaleY;
-    const bubbleRight = (bubble.x + bubble.width) * scaleX;
-    const bubbleBottom = (bubble.y + bubble.height) * scaleY;
+    const paddingRatio = 0.08;
+    const safePadding = Math.min(bubbleBounds.width, bubbleBounds.height) * paddingRatio;
 
-    const padding = 10 * scaleX;
+    const textInsideWithPadding =
+      textBounds.left >= bubbleBounds.left + safePadding &&
+      textBounds.right <= bubbleBounds.right - safePadding &&
+      textBounds.top >= bubbleBounds.top + safePadding &&
+      textBounds.bottom <= bubbleBounds.bottom - safePadding;
 
-    const isInside =
-      answer.x >= bubbleLeft + padding &&
-      answer.x <= bubbleRight - padding &&
-      answer.y >= bubbleTop + padding &&
-      answer.y <= bubbleBottom - padding;
-
-    if (isInside) {
+    if (textInsideWithPadding) {
       score += 5;
-    } else {
+    } else if (overflow.totalOverflowRatio <= 0.05) {
+      score += 4;
+      issues.push({
+        bubbleId: answer.bubbleId,
+        message: '文字离气泡边缘太近'
+      });
+    } else if (overflow.totalOverflowRatio <= 0.15) {
+      score += 3;
+      issues.push({
+        bubbleId: answer.bubbleId,
+        message: '文字轻微压线'
+      });
+    } else if (overflow.totalOverflowRatio <= 0.3) {
       score += 2;
       issues.push({
         bubbleId: answer.bubbleId,
-        message: '文字超出气泡边界'
+        message: '文字明显超出气泡'
+      });
+    } else {
+      score += 1;
+      issues.push({
+        bubbleId: answer.bubbleId,
+        message: '文字严重超出气泡范围'
       });
     }
   });
@@ -148,35 +261,62 @@ const evaluateCentering = (
   let score = 0;
   const maxScore = exercise.dialogues.length * 5;
 
+  const scaleX = imageWidth / 750;
+  const scaleY = imageHeight / 1000;
+
   answers.forEach(answer => {
     const bubble = exercise.bubbles.find(b => b.id === answer.bubbleId);
     if (!bubble) return;
 
-    const scaleX = imageWidth / 750;
-    const scaleY = imageHeight / 1000;
-
-    const bubbleCenterX = (bubble.x + bubble.width / 2) * scaleX;
-    const bubbleCenterY = (bubble.y + bubble.height / 2) * scaleY;
-
-    const distance = Math.sqrt(
-      Math.pow(answer.x - bubbleCenterX, 2) + Math.pow(answer.y - bubbleCenterY, 2)
+    const text = getDialogueText(exercise, answer.dialogueId);
+    const textBounds = calculateTextBounds(
+      text,
+      answer.x,
+      answer.y,
+      answer.fontSize,
+      answer.letterSpacing,
+      answer.isVertical
     );
+    const bubbleBounds = getBubbleBounds(bubble, scaleX, scaleY);
 
-    const maxDistance = Math.min(bubble.width, bubble.height) * 0.3 * scaleX;
+    const textCenterX = (textBounds.left + textBounds.right) / 2;
+    const textCenterY = (textBounds.top + textBounds.bottom) / 2;
 
-    if (distance < maxDistance) {
+    const offsetX = Math.abs(textCenterX - bubbleBounds.centerX);
+    const offsetY = Math.abs(textCenterY - bubbleBounds.centerY);
+
+    const maxHorizontalOffset = (bubbleBounds.width - textBounds.width) / 2;
+    const maxVerticalOffset = (bubbleBounds.height - textBounds.height) / 2;
+
+    const horizontalRatio = maxHorizontalOffset > 0 ? offsetX / maxHorizontalOffset : 0;
+    const verticalRatio = maxVerticalOffset > 0 ? offsetY / maxVerticalOffset : 0;
+    const totalOffsetRatio = Math.max(horizontalRatio, verticalRatio);
+
+    if (totalOffsetRatio <= 0.1) {
       score += 5;
-    } else if (distance < maxDistance * 2) {
+    } else if (totalOffsetRatio <= 0.25) {
+      score += 4;
+      issues.push({
+        bubbleId: answer.bubbleId,
+        message: '文字稍有偏移'
+      });
+    } else if (totalOffsetRatio <= 0.5) {
       score += 3;
       issues.push({
         bubbleId: answer.bubbleId,
         message: '文字未在气泡中居中'
       });
+    } else if (totalOffsetRatio <= 0.75) {
+      score += 2;
+      issues.push({
+        bubbleId: answer.bubbleId,
+        message: '文字偏离中心较多'
+      });
     } else {
       score += 1;
       issues.push({
         bubbleId: answer.bubbleId,
-        message: '文字偏离气泡中心太远'
+        message: '文字严重偏离中心'
       });
     }
   });

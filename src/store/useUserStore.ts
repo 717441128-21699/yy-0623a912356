@@ -2,6 +2,40 @@ import { create } from 'zustand';
 import { UserProgress, ScoreResult } from '@/types';
 import { initialUserProgress } from '@/data/userProgress';
 import dayjs from 'dayjs';
+import Taro from '@tarojs/taro';
+
+const STORAGE_KEY_PROGRESS = 'comic_lettering_progress';
+
+const loadProgressFromStorage = (): UserProgress => {
+  try {
+    const data = Taro.getStorageSync(STORAGE_KEY_PROGRESS);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed === 'object') {
+        return {
+          checkInDays: parsed.checkInDays ?? 0,
+          continuousDays: parsed.continuousDays ?? 0,
+          totalExercises: parsed.totalExercises ?? 0,
+          averageScore: parsed.averageScore ?? 0,
+          unlockedCategories: Array.isArray(parsed.unlockedCategories) ? parsed.unlockedCategories : ['basic'],
+          achievements: Array.isArray(parsed.achievements) ? parsed.achievements : [],
+          checkInHistory: Array.isArray(parsed.checkInHistory) ? parsed.checkInHistory : []
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('[UserStore] 读取本地存储失败', e);
+  }
+  return initialUserProgress;
+};
+
+const saveProgressToStorage = (progress: UserProgress) => {
+  try {
+    Taro.setStorageSync(STORAGE_KEY_PROGRESS, JSON.stringify(progress));
+  } catch (e) {
+    console.warn('[UserStore] 保存本地存储失败', e);
+  }
+};
 
 interface UserState {
   progress: UserProgress;
@@ -16,7 +50,7 @@ interface UserState {
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
-  progress: initialUserProgress,
+  progress: loadProgressFromStorage(),
   todayCheckedIn: false,
   currentExerciseId: null,
   lastScore: null,
@@ -58,6 +92,8 @@ export const useUserStore = create<UserState>((set, get) => ({
       newProgress.unlockedCategories.push('cross-panel');
     }
 
+    saveProgressToStorage(newProgress);
+
     set({
       progress: newProgress,
       todayCheckedIn: true
@@ -97,6 +133,8 @@ export const useUserStore = create<UserState>((set, get) => ({
     if (newProgress.unlockedCategories.length >= 4 && !newProgress.achievements.includes('all-categories')) {
       newProgress.achievements.push('all-categories');
     }
+
+    saveProgressToStorage(newProgress);
 
     set({ progress: newProgress });
     console.log('[UserStore] 练习完成', { score, newAverage, newTotal });
