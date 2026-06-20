@@ -51,6 +51,7 @@ export interface UserAnswer {
   isVertical: boolean;
   fontSize: number;
   letterSpacing: number;
+  lineBreak?: number[];
 }
 
 export interface ScoreItem {
@@ -59,6 +60,7 @@ export interface ScoreItem {
   maxScore: number;
   issues: {
     bubbleId: string;
+    dialogueId?: string;
     message: string;
   }[];
 }
@@ -69,6 +71,11 @@ export interface ScoreResult {
   level: 'excellent' | 'good' | 'improve';
   items: ScoreItem[];
   problemBubbles: string[];
+  dialogueIssues: {
+    dialogueId: string;
+    bubbleId: string;
+    issues: string[];
+  }[];
 }
 
 export interface UserProgress {
@@ -100,4 +107,16 @@ export interface PlacedText {
   isVertical: boolean;
   fontSize: number;
   letterSpacing: number;
+  lineBreak?: number[];
+}
+
+export interface ExerciseRecord {
+  id: string;
+  exerciseId: string;
+  exerciseTitle: string;
+  answers: UserAnswer[];
+  scoreResult: ScoreResult;
+  score: number;
+  date: string;
+  placedTexts: PlacedText[];
 }

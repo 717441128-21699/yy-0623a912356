@@ -6,11 +6,11 @@ import { getExerciseById } from '@/data/exercises';
 import { Exercise, UserAnswer, PlacedText } from '@/types';
 import { calculateScore } from '@/utils/scoring';
 import { useUserStore } from '@/store/useUserStore';
-import BubbleCard from '@/components/BubbleCard';
 import styles from './index.module.scss';
 
 interface DragState {
   isDragging: boolean;
+  hasMoved: boolean;
   dialogueId: string | null;
   startX: number;
   startY: number;
@@ -20,6 +20,8 @@ interface DragState {
   offsetX: number;
   offsetY: number;
 }
+
+const DRAG_THRESHOLD = 10;
 
 const EditorPage: React.FC = () => {
   const router = useRouter();
@@ -33,9 +35,11 @@ const EditorPage: React.FC = () => {
     isVertical: boolean;
     fontSize: number;
     letterSpacing: number;
+    lineBreak: number[];
   }>>({});
   const [dragState, setDragState] = useState<DragState>({
     isDragging: false,
+    hasMoved: false,
     dialogueId: null,
     startX: 0,
     startY: 0,
@@ -46,6 +50,7 @@ const EditorPage: React.FC = () => {
     offsetY: 0
   });
   const [hoverBubbleId, setHoverBubbleId] = useState<string | null>(null);
+  const [showLineBreakEditor, setShowLineBreakEditor] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const exerciseId = router.params.id || 'ex-001';
@@ -58,12 +63,14 @@ const EditorPage: React.FC = () => {
       setImageError(false);
       setPlacedTexts([]);
       setSelectedDialogue(null);
-      const initialSettings: Record<string, { isVertical: boolean; fontSize: number; letterSpacing: number }> = {};
+      setShowLineBreakEditor(false);
+      const initialSettings: Record<string, { isVertical: boolean; fontSize: number; letterSpacing: number; lineBreak: number[] }> = {};
       ex.dialogues.forEach(d => {
         initialSettings[d.id] = {
           isVertical: false,
           fontSize: 26,
-          letterSpacing: 2
+          letterSpacing: 2,
+          lineBreak: []
         };
       });
       setTextSettings(initialSettings);
@@ -105,14 +112,12 @@ const EditorPage: React.FC = () => {
 
   const findBubbleAtPoint = useCallback((x: number, y: number) => {
     if (!exercise) return null;
-    
     for (let i = exercise.bubbles.length - 1; i >= 0; i--) {
       const bubble = exercise.bubbles[i];
       const bubbleLeft = bubble.x * scaleX;
       const bubbleTop = bubble.y * scaleY;
       const bubbleRight = (bubble.x + bubble.width) * scaleX;
       const bubbleBottom = (bubble.y + bubble.height) * scaleY;
-      
       if (x >= bubbleLeft && x <= bubbleRight && y >= bubbleTop && y <= bubbleBottom) {
         return bubble;
       }
@@ -123,37 +128,29 @@ const EditorPage: React.FC = () => {
   const handleDialogueTouchStart = (e: React.TouchEvent, dialogueId: string) => {
     e.preventDefault();
     const touch = e.touches[0];
-    const dialogue = exercise?.dialogues.find(d => d.id === dialogueId);
-    if (!dialogue) return;
-
-    const placed = placedTexts.find(p => p.dialogueId === dialogueId);
-
     setDragState({
       isDragging: true,
+      hasMoved: false,
       dialogueId,
       startX: touch.clientX,
       startY: touch.clientY,
       currentX: touch.clientX,
       currentY: touch.clientY,
-      isNew: !placed,
+      isNew: true,
       offsetX: 0,
       offsetY: 0
     });
-
     setSelectedDialogue(dialogueId);
-    Taro.vibrateShort && Taro.vibrateShort({ type: 'light' });
   };
 
   const handlePlacedTextTouchStart = (e: React.TouchEvent, dialogueId: string) => {
     e.preventDefault();
     e.stopPropagation();
     const touch = e.touches[0];
-    const placed = placedTexts.find(p => p.dialogueId === dialogueId);
-    if (!placed) return;
-
     setSelectedDialogue(dialogueId);
     setDragState({
       isDragging: true,
+      hasMoved: false,
       dialogueId,
       startX: touch.clientX,
       startY: touch.clientY,
@@ -163,49 +160,43 @@ const EditorPage: React.FC = () => {
       offsetX: 0,
       offsetY: 0
     });
-
-    Taro.vibrateShort && Taro.vibrateShort({ type: 'light' });
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!dragState.isDragging || !dragState.dialogueId) return;
-    
     const touch = e.touches[0];
     const deltaX = touch.clientX - dragState.startX;
     const deltaY = touch.clientY - dragState.startY;
-
+    const moved = Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD;
     setDragState(prev => ({
       ...prev,
       currentX: touch.clientX,
       currentY: touch.clientY,
       offsetX: deltaX,
-      offsetY: deltaY
+      offsetY: deltaY,
+      hasMoved: prev.hasMoved || moved
     }));
-
-    const coord = pointToCanvasCoord(touch.clientX, touch.clientY);
-    const bubble = findBubbleAtPoint(coord.x, coord.y);
-    setHoverBubbleId(bubble?.id || null);
+    if (moved) {
+      const coord = pointToCanvasCoord(touch.clientX, touch.clientY);
+      const bubble = findBubbleAtPoint(coord.x, coord.y);
+      setHoverBubbleId(bubble?.id || null);
+    }
   };
 
-  const findBubbleByPosition = useCallback((x: number, y: number) => {
-    if (!exercise) return null;
-    
-    for (let i = exercise.bubbles.length - 1; i >= 0; i--) {
-      const bubble = exercise.bubbles[i];
-      const bubbleLeft = bubble.x * scaleX;
-      const bubbleTop = bubble.y * scaleY;
-      const bubbleRight = (bubble.x + bubble.width) * scaleX;
-      const bubbleBottom = (bubble.y + bubble.height) * scaleY;
-      
-      if (x >= bubbleLeft && x <= bubbleRight && y >= bubbleTop && y <= bubbleBottom) {
-        return bubble;
-      }
-    }
-    return null;
-  }, [exercise, scaleX, scaleY]);
-
   const handleTouchEnd = () => {
-    if (!dragState.isDragging || !dragState.dialogueId || !exercise) {
+    if (!dragState.isDragging || !dragState.dialogueId) {
+      setDragState(prev => ({ ...prev, isDragging: false }));
+      setHoverBubbleId(null);
+      return;
+    }
+
+    if (!dragState.hasMoved) {
+      setDragState(prev => ({ ...prev, isDragging: false, hasMoved: false }));
+      setHoverBubbleId(null);
+      return;
+    }
+
+    if (!exercise) {
       setDragState(prev => ({ ...prev, isDragging: false }));
       setHoverBubbleId(null);
       return;
@@ -213,59 +204,71 @@ const EditorPage: React.FC = () => {
 
     const dialogueId = dragState.dialogueId;
     const dialogue = exercise.dialogues.find(d => d.id === dialogueId);
-    if (!dialogue) return;
-
-    const settings = textSettings[dialogueId] || { isVertical: false, fontSize: 26, letterSpacing: 2 };
-    const coord = pointToCanvasCoord(dragState.currentX, dragState.currentY);
-    const bubble = findBubbleByPosition(coord.x, coord.y);
-
-    const existingIndex = placedTexts.findIndex(p => p.dialogueId === dialogueId);
-    const newPlacedText: PlacedText = {
-      dialogueId,
-      bubbleId: bubble?.id || '',
-      x: coord.x,
-      y: coord.y,
-      text: dialogue.text,
-      isVertical: settings.isVertical,
-      fontSize: settings.fontSize,
-      letterSpacing: settings.letterSpacing
-    };
-
-    if (existingIndex >= 0) {
-      const updated = [...placedTexts];
-      updated[existingIndex] = newPlacedText;
-      setPlacedTexts(updated);
-    } else {
-      setPlacedTexts([...placedTexts, newPlacedText]);
+    if (!dialogue) {
+      setDragState(prev => ({ ...prev, isDragging: false }));
+      setHoverBubbleId(null);
+      return;
     }
 
+    const settings = textSettings[dialogueId] || { isVertical: false, fontSize: 26, letterSpacing: 2, lineBreak: [] };
+    const coord = pointToCanvasCoord(dragState.currentX, dragState.currentY);
+    const bubble = findBubbleAtPoint(coord.x, coord.y);
+
     if (bubble) {
+      const existingIndex = placedTexts.findIndex(p => p.dialogueId === dialogueId);
+      const newPlacedText: PlacedText = {
+        dialogueId,
+        bubbleId: bubble.id,
+        x: coord.x,
+        y: coord.y,
+        text: dialogue.text,
+        isVertical: settings.isVertical,
+        fontSize: settings.fontSize,
+        letterSpacing: settings.letterSpacing,
+        lineBreak: settings.lineBreak
+      };
+      if (existingIndex >= 0) {
+        const updated = [...placedTexts];
+        updated[existingIndex] = newPlacedText;
+        setPlacedTexts(updated);
+      } else {
+        setPlacedTexts([...placedTexts, newPlacedText]);
+      }
       Taro.vibrateShort && Taro.vibrateShort({ type: 'medium' });
     } else {
+      if (!dragState.isNew) {
+        const existingIndex = placedTexts.findIndex(p => p.dialogueId === dialogueId);
+        if (existingIndex >= 0) {
+          const updated = [...placedTexts];
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            x: coord.x,
+            y: coord.y
+          };
+          setPlacedTexts(updated);
+        }
+      }
       Taro.vibrateShort && Taro.vibrateShort({ type: 'light' });
     }
 
-    setDragState(prev => ({ ...prev, isDragging: false }));
+    setDragState(prev => ({ ...prev, isDragging: false, hasMoved: false }));
     setHoverBubbleId(null);
   };
 
   const handleDialogueSelect = (dialogueId: string) => {
-    if (dragState.isDragging) return;
+    if (dragState.isDragging && dragState.hasMoved) return;
     setSelectedDialogue(dialogueId);
   };
 
   const handleBubbleClick = (bubbleId: string) => {
     if (!selectedDialogue || !exercise || dragState.isDragging) return;
-
     const bubble = exercise.bubbles.find(b => b.id === bubbleId);
     if (!bubble) return;
-
     const dialogue = exercise.dialogues.find(d => d.id === selectedDialogue);
     if (!dialogue) return;
 
     Taro.vibrateShort && Taro.vibrateShort({ type: 'light' });
-
-    const settings = textSettings[selectedDialogue] || { isVertical: false, fontSize: 26, letterSpacing: 2 };
+    const settings = textSettings[selectedDialogue] || { isVertical: false, fontSize: 26, letterSpacing: 2, lineBreak: [] };
     const centerX = (bubble.x + bubble.width / 2) * scaleX;
     const centerY = (bubble.y + bubble.height / 2) * scaleY;
 
@@ -278,7 +281,8 @@ const EditorPage: React.FC = () => {
       text: dialogue.text,
       isVertical: settings.isVertical,
       fontSize: settings.fontSize,
-      letterSpacing: settings.letterSpacing
+      letterSpacing: settings.letterSpacing,
+      lineBreak: settings.lineBreak
     };
 
     if (existingIndex >= 0) {
@@ -299,10 +303,7 @@ const EditorPage: React.FC = () => {
     if (!selectedDialogue) return;
     setTextSettings(prev => ({
       ...prev,
-      [selectedDialogue]: {
-        ...prev[selectedDialogue],
-        isVertical
-      }
+      [selectedDialogue]: { ...prev[selectedDialogue], isVertical }
     }));
     setPlacedTexts(prev => prev.map(p =>
       p.dialogueId === selectedDialogue ? { ...p, isVertical } : p
@@ -313,10 +314,7 @@ const EditorPage: React.FC = () => {
     if (!selectedDialogue) return;
     setTextSettings(prev => ({
       ...prev,
-      [selectedDialogue]: {
-        ...prev[selectedDialogue],
-        fontSize: value
-      }
+      [selectedDialogue]: { ...prev[selectedDialogue], fontSize: value }
     }));
     setPlacedTexts(prev => prev.map(p =>
       p.dialogueId === selectedDialogue ? { ...p, fontSize: value } : p
@@ -327,14 +325,47 @@ const EditorPage: React.FC = () => {
     if (!selectedDialogue) return;
     setTextSettings(prev => ({
       ...prev,
-      [selectedDialogue]: {
-        ...prev[selectedDialogue],
-        letterSpacing: value
-      }
+      [selectedDialogue]: { ...prev[selectedDialogue], letterSpacing: value }
     }));
     setPlacedTexts(prev => prev.map(p =>
       p.dialogueId === selectedDialogue ? { ...p, letterSpacing: value } : p
     ));
+  };
+
+  const handleToggleLineBreakEditor = () => {
+    setShowLineBreakEditor(prev => !prev);
+  };
+
+  const handleAddLineBreak = (charIndex: number) => {
+    if (!selectedDialogue) return;
+    setTextSettings(prev => {
+      const current = prev[selectedDialogue];
+      if (!current) return prev;
+      const existing = current.lineBreak || [];
+      if (existing.includes(charIndex)) return prev;
+      const newBreaks = [...existing, charIndex].sort((a, b) => a - b);
+      return { ...prev, [selectedDialogue]: { ...current, lineBreak: newBreaks } };
+    });
+    setPlacedTexts(prev => prev.map(p => {
+      if (p.dialogueId !== selectedDialogue) return p;
+      const existing = p.lineBreak || [];
+      if (existing.includes(charIndex)) return p;
+      const newBreaks = [...existing, charIndex].sort((a, b) => a - b);
+      return { ...p, lineBreak: newBreaks };
+    }));
+  };
+
+  const handleRemoveLineBreak = (charIndex: number) => {
+    if (!selectedDialogue) return;
+    setTextSettings(prev => {
+      const current = prev[selectedDialogue];
+      if (!current) return prev;
+      return { ...prev, [selectedDialogue]: { ...current, lineBreak: (current.lineBreak || []).filter(b => b !== charIndex) } };
+    });
+    setPlacedTexts(prev => prev.map(p => {
+      if (p.dialogueId !== selectedDialogue) return p;
+      return { ...p, lineBreak: (p.lineBreak || []).filter(b => b !== charIndex) };
+    }));
   };
 
   const handleReset = () => {
@@ -352,7 +383,6 @@ const EditorPage: React.FC = () => {
 
   const handleSubmit = () => {
     if (!exercise) return;
-
     const placedCount = placedTexts.length;
     const totalCount = exercise.dialogues.length;
 
@@ -371,7 +401,8 @@ const EditorPage: React.FC = () => {
       y: pt.y,
       isVertical: pt.isVertical,
       fontSize: pt.fontSize,
-      letterSpacing: pt.letterSpacing
+      letterSpacing: pt.letterSpacing,
+      lineBreak: pt.lineBreak
     }));
 
     const scoreResult = calculateScore({
@@ -382,9 +413,16 @@ const EditorPage: React.FC = () => {
     });
 
     const percentage = Math.round((scoreResult.totalScore / scoreResult.maxScore) * 100);
-
     useUserStore.getState().setLastScore(scoreResult);
     useUserStore.getState().completeExercise(percentage);
+    useUserStore.getState().addExerciseRecord({
+      exerciseId: exercise.id,
+      exerciseTitle: exercise.title,
+      answers,
+      scoreResult,
+      score: percentage,
+      placedTexts: [...placedTexts]
+    });
 
     Taro.redirectTo({
       url: `/pages/result/index?id=${exercise.id}`
@@ -401,13 +439,26 @@ const EditorPage: React.FC = () => {
 
   const currentSettings = selectedDialogue ? textSettings[selectedDialogue] : null;
 
-  const getDragPreviewStyle = () => {
-    if (!dragState.isDragging || !dragState.dialogueId || !exercise) return null;
+  const getDisplayText = (text: string, lineBreak: number[] | undefined) => {
+    if (!lineBreak || lineBreak.length === 0) return text;
+    const breaks = [...lineBreak].sort((a, b) => a - b);
+    let result = '';
+    let lastIdx = 0;
+    breaks.forEach(brk => {
+      if (brk > lastIdx && brk < text.length) {
+        result += text.slice(lastIdx, brk) + '\n';
+        lastIdx = brk;
+      }
+    });
+    result += text.slice(lastIdx);
+    return result;
+  };
 
+  const getDragPreviewStyle = () => {
+    if (!dragState.isDragging || !dragState.hasMoved || !dragState.dialogueId || !exercise) return null;
     const dialogue = exercise.dialogues.find(d => d.id === dragState.dialogueId);
     if (!dialogue) return null;
-
-    const settings = textSettings[dragState.dialogueId] || { isVertical: false, fontSize: 26, letterSpacing: 2 };
+    const settings = textSettings[dragState.dialogueId] || { isVertical: false, fontSize: 26, letterSpacing: 2, lineBreak: [] };
     const placed = placedTexts.find(p => p.dialogueId === dragState.dialogueId);
 
     let x: number;
@@ -430,7 +481,7 @@ const EditorPage: React.FC = () => {
     return {
       left: x,
       top: y,
-      text: dialogue.text,
+      text: getDisplayText(dialogue.text, settings.lineBreak),
       isVertical: settings.isVertical,
       fontSize: settings.fontSize,
       letterSpacing: settings.letterSpacing,
@@ -439,6 +490,8 @@ const EditorPage: React.FC = () => {
   };
 
   const dragPreview = getDragPreviewStyle();
+
+  const currentDialogue = selectedDialogue ? exercise?.dialogues.find(d => d.id === selectedDialogue) : null;
 
   if (!exercise) {
     return (
@@ -530,8 +583,10 @@ const EditorPage: React.FC = () => {
           </View>
           <View className={styles.textLayer}>
             {placedTexts.map((pt) => {
-              const isDraggingThis = dragState.isDragging && dragState.dialogueId === pt.dialogueId;
+              const isDraggingThis = dragState.isDragging && dragState.hasMoved && dragState.dialogueId === pt.dialogueId;
               const isSelected = selectedDialogue === pt.dialogueId && !dragState.isDragging;
+              const displayText = getDisplayText(pt.text, pt.lineBreak);
+              const isMultiLine = displayText.includes('\n');
               return (
                 <View
                   key={pt.dialogueId}
@@ -551,14 +606,15 @@ const EditorPage: React.FC = () => {
                   <Text
                     className={classnames(
                       styles.textContent,
-                      pt.isVertical && styles.verticalText
+                      pt.isVertical && styles.verticalText,
+                      isMultiLine && !pt.isVertical && styles.multiLineText
                     )}
                     style={{
                       fontSize: `${pt.fontSize}rpx`,
                       letterSpacing: `${pt.letterSpacing}rpx`
                     }}
                   >
-                    {pt.text}
+                    {displayText}
                   </Text>
                 </View>
               );
@@ -579,7 +635,8 @@ const EditorPage: React.FC = () => {
           <Text
             className={classnames(
               styles.dragPreviewText,
-              dragPreview.isVertical && styles.verticalText
+              dragPreview.isVertical && styles.verticalText,
+              dragPreview.text.includes('\n') && styles.multiLineText
             )}
             style={{
               fontSize: `${dragPreview.fontSize}rpx`,
@@ -658,6 +715,75 @@ const EditorPage: React.FC = () => {
                 />
               </View>
             </View>
+
+            <View className={styles.settingGroup}>
+              <View className={styles.lineBreakHeader}>
+                <Text className={styles.settingLabel}>断行编辑</Text>
+                <Button
+                  className={styles.lineBreakToggle}
+                  onClick={handleToggleLineBreakEditor}
+                >
+                  {showLineBreakEditor ? '收起' : '编辑'}
+                </Button>
+              </View>
+              {currentDialogue && (
+                <Text className={styles.lineBreakHint}>
+                  {currentSettings.lineBreak.length > 0
+                    ? `已断${currentSettings.lineBreak.length}处`
+                    : '点击字间插入断行点'
+                  }
+                </Text>
+              )}
+              {showLineBreakEditor && currentDialogue && (
+                <View className={styles.lineBreakEditor}>
+                  <View className={styles.lineBreakText}>
+                    {currentDialogue.text.split('').map((char, index) => (
+                      <React.Fragment key={index}>
+                        <Text
+                          className={styles.lineBreakChar}
+                          onClick={() => {
+                            if (currentSettings.lineBreak.includes(index)) {
+                              handleRemoveLineBreak(index);
+                            } else {
+                              handleAddLineBreak(index);
+                            }
+                          }}
+                        >
+                          {char}
+                        </Text>
+                        {index < currentDialogue.text.length - 1 && (
+                          <View
+                            className={classnames(
+                              styles.lineBreakPoint,
+                              currentSettings.lineBreak.includes(index + 1) && styles.active
+                            )}
+                            onClick={() => {
+                              if (currentSettings.lineBreak.includes(index + 1)) {
+                                handleRemoveLineBreak(index + 1);
+                              } else {
+                                handleAddLineBreak(index + 1);
+                              }
+                            }}
+                          >
+                            {currentSettings.lineBreak.includes(index + 1) && (
+                              <Text className={styles.lineBreakArrow}>↵</Text>
+                            )}
+                          </View>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </View>
+                  {currentSettings.lineBreak.length > 0 && (
+                    <View className={styles.lineBreakPreview}>
+                      <Text className={styles.lineBreakPreviewLabel}>预览效果：</Text>
+                      <Text className={styles.lineBreakPreviewText}>
+                        {getDisplayText(currentDialogue.text, currentSettings.lineBreak)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
           </>
         )}
 
@@ -667,7 +793,7 @@ const EditorPage: React.FC = () => {
             {exercise.dialogues.map((dialogue, index) => {
               const bubble = exercise.bubbles.find(b => b.id === dialogue.targetBubbleId);
               const placed = isDialoguePlaced(dialogue.id);
-              const isDraggingThis = dragState.isDragging && dragState.dialogueId === dialogue.id;
+              const isDraggingThis = dragState.isDragging && dragState.hasMoved && dragState.dialogueId === dialogue.id;
               return (
                 <View
                   key={dialogue.id}
@@ -690,7 +816,7 @@ const EditorPage: React.FC = () => {
                     </Text>
                   </View>
                   <Text className={styles.dragHint}>
-                    拖动
+                    {placed ? '✓' : '拖动'}
                   </Text>
                 </View>
               );

@@ -8,7 +8,7 @@ import AchievementBadge from '@/components/AchievementBadge';
 import styles from './index.module.scss';
 
 const MinePage: React.FC = () => {
-  const { progress } = useUserStore();
+  const { progress, exerciseRecords } = useUserStore();
   const [currentMonth, setCurrentMonth] = useState(dayjs());
 
   const userLevel = progress.checkInDays >= 21 ? '嵌字大师' : 
@@ -189,6 +189,40 @@ const MinePage: React.FC = () => {
               ))}
             </View>
           </View>
+        </View>
+
+        <View className={styles.section}>
+          <Text className={styles.sectionTitle}>练习记录</Text>
+          {exerciseRecords.length > 0 ? (
+            <View className={styles.recordList}>
+              {exerciseRecords.slice(0, 10).map((record) => (
+                <View
+                  key={record.id}
+                  className={styles.recordItem}
+                  onClick={() => {
+                    Taro.navigateTo({
+                      url: `/pages/result/index?id=${record.exerciseId}&recordId=${record.id}`
+                    });
+                  }}
+                >
+                  <View className={styles.recordInfo}>
+                    <Text className={styles.recordTitle}>{record.exerciseTitle}</Text>
+                    <Text className={styles.recordDate}>{record.date}</Text>
+                  </View>
+                  <View className={styles.recordScore}>
+                    <Text className={styles.recordScoreValue}>{record.score}</Text>
+                    <Text className={styles.recordScoreLabel}>分</Text>
+                  </View>
+                  <Text className={styles.recordArrow}>›</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View className={styles.emptyRecords}>
+              <Text className={styles.emptyRecordsText}>还没有练习记录</Text>
+              <Text className={styles.emptyRecordsHint}>完成一次嵌字练习后这里会显示记录</Text>
+            </View>
+          )}
         </View>
 
         <View className={styles.section}>

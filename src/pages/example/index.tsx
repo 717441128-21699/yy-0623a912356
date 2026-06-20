@@ -6,6 +6,21 @@ import { getExerciseById } from '@/data/exercises';
 import { Exercise } from '@/types';
 import styles from './index.module.scss';
 
+const getDisplayText = (text: string, lineBreak?: number[]): string => {
+  if (!lineBreak || lineBreak.length === 0) return text;
+  const breaks = [...lineBreak].sort((a, b) => a - b);
+  let result = '';
+  let lastIdx = 0;
+  breaks.forEach(brk => {
+    if (brk > lastIdx && brk <= text.length) {
+      result += text.slice(lastIdx, brk) + '\n';
+      lastIdx = brk;
+    }
+  });
+  result += text.slice(lastIdx);
+  return result;
+};
+
 const ExamplePage: React.FC = () => {
   const router = useRouter();
   const [exercise, setExercise] = useState<Exercise | null>(null);
@@ -120,6 +135,8 @@ const ExamplePage: React.FC = () => {
                     if (!answer || !bubble) return null;
                     const centerX = (bubble.x + bubble.width / 2) * scaleX;
                     const centerY = (bubble.y + bubble.height / 2) * scaleY;
+                    const displayText = getDisplayText(dialogue.text, answer.lineBreak);
+                    const hasLineBreak = answer.lineBreak && answer.lineBreak.length > 0;
                     return (
                       <View
                         key={dialogue.id}
@@ -133,14 +150,15 @@ const ExamplePage: React.FC = () => {
                         <Text
                           className={classnames(
                             styles.exampleContent,
-                            answer.isVertical && styles.vertical
+                            answer.isVertical && styles.vertical,
+                            hasLineBreak && styles.multiLineText
                           )}
                           style={{
                             fontSize: `${answer.fontSize * 0.8}rpx`,
                             letterSpacing: `${answer.letterSpacing}rpx`
                           }}
                         >
-                          {dialogue.text}
+                          {displayText}
                         </Text>
                       </View>
                     );
@@ -207,6 +225,14 @@ const ExamplePage: React.FC = () => {
                       </View>
                     )}
                   </View>
+                  {answer.lineBreak && answer.lineBreak.length > 0 && (
+                    <View className={styles.lineBreakSection}>
+                      <Text className={styles.lineBreakLabel}>推荐断行</Text>
+                      <Text className={styles.lineBreakDisplay}>
+                        {getDisplayText(dialogue.text, answer.lineBreak)}
+                      </Text>
+                    </View>
+                  )}
                   <View className={styles.noteReason}>
                     <Text className={styles.reasonLabel}>为什么这样处理？</Text>
                     <Text className={styles.reasonText}>{note.reason}</Text>

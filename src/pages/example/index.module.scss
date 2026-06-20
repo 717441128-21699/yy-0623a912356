@@ -234,6 +234,31 @@
   font-weight: $font-weight-semibold;
 }
 
+.lineBreakSection {
+  margin-bottom: $spacing-md;
+  padding: $spacing-md;
+  background: rgba(78, 205, 196, 0.08);
+  border-radius: $radius-md;
+}
+
+.lineBreakLabel {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-secondary;
+  margin-bottom: $spacing-xs;
+}
+
+.lineBreakDisplay {
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.multiLineText {
+  white-space: pre-wrap;
+}
+
 .noteReason {
   margin-bottom: $spacing-sm;
 }

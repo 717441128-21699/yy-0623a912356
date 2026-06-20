@@ -91,7 +91,7 @@
   }
 }
 
-.errorOverlay {
+.bubbleOverlay {
   position: absolute;
   top: 0;
   left: 0;
@@ -100,12 +100,17 @@
   pointer-events: none;
 }
 
-.errorBox {
+.bubbleBox {
   position: absolute;
-  border: 4rpx solid $color-error-highlight;
+  border: 3rpx dashed rgba(255, 255, 255, 0.4);
   border-radius: $radius-md;
-  background: rgba(225, 112, 85, 0.15);
-  animation: pulse 2s ease-in-out infinite;
+
+  &.problemBubble {
+    border: 4rpx solid $color-error-highlight;
+    background: rgba(225, 112, 85, 0.15);
+    animation: pulse 2s ease-in-out infinite;
+    pointer-events: auto;
+  }
 }
 
 @keyframes pulse {
@@ -117,22 +122,70 @@
   }
 }
 
-.errorLabel {
+.bubbleErrorLabel {
   position: absolute;
-  top: -30rpx;
-  left: -10rpx;
-  padding: 4rpx $spacing-sm;
+  top: -24rpx;
+  left: -6rpx;
+  padding: 2rpx $spacing-xs;
   background: $color-error-highlight;
   color: $color-text-white;
   border-radius: $radius-xs;
-  font-size: 20rpx;
+  font-size: 18rpx;
   font-weight: $font-weight-semibold;
+}
+
+.placedTextOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.placedTextView {
+  position: absolute;
+  padding: 4rpx;
+  text-align: center;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &.placedTextIssue {
+    outline: 3rpx solid rgba(225, 112, 85, 0.6);
+    outline-offset: 4rpx;
+    border-radius: $radius-sm;
+  }
+
+  &.placedTextActive {
+    outline: 3rpx solid $color-secondary;
+    outline-offset: 4rpx;
+    background: rgba(78, 205, 196, 0.15);
+    border-radius: $radius-sm;
+  }
+}
+
+.placedTextContent {
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+  text-align: center;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.verticalText {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.multiLineText {
+  white-space: pre-wrap !important;
 }
 
 .tip {
   margin-top: $spacing-md;
   padding: $spacing-md;
-  background: rgba(255, 118, 117, 0.1);
+  background: rgba(116, 185, 255, 0.1);
   border-radius: $radius-md;
   display: flex;
   align-items: flex-start;
@@ -149,6 +202,137 @@
   font-size: $font-size-sm;
   color: $color-text-secondary;
   line-height: $line-height-normal;
+}
+
+.dialogueSection {
+  margin-bottom: $spacing-xl;
+}
+
+.dialogueList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.dialogueCard {
+  padding: $spacing-md;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+  border-left: 6rpx solid $color-success;
+  transition: all $transition-fast;
+
+  &.dialogueCardIssue {
+    border-left-color: $color-error-highlight;
+  }
+
+  &.dialogueCardActive {
+    box-shadow: $shadow-card, 0 0 0 3rpx $color-secondary;
+  }
+}
+
+.dialogueCardHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.dialogueCardIndex {
+  width: 40rpx;
+  height: 40rpx;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  color: $color-text-white;
+  border-radius: $radius-round;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  flex-shrink: 0;
+}
+
+.dialogueCardText {
+  flex: 1;
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+  @include text-ellipsis-multi(1);
+}
+
+.dialogueCardBadge {
+  font-size: 28rpx;
+  flex-shrink: 0;
+}
+
+.dialogueSettings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  margin-top: $spacing-md;
+  padding-top: $spacing-md;
+  border-top: 1rpx solid $color-divider;
+}
+
+.settingTag {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  padding: 4rpx $spacing-sm;
+  background: $color-bg-page;
+  border-radius: $radius-sm;
+  font-size: $font-size-xs;
+}
+
+.settingLabel {
+  color: $color-text-tertiary;
+}
+
+.settingValue {
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+
+  &.wrong {
+    color: $color-error-highlight;
+  }
+}
+
+.correctHint {
+  color: $color-success;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+}
+
+.dialogueIssues {
+  margin-top: $spacing-sm;
+  padding: $spacing-sm;
+  background: rgba(225, 112, 85, 0.08);
+  border-radius: $radius-sm;
+}
+
+.issueRow {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-xs;
+  margin-bottom: 4rpx;
+}
+
+.issueDot {
+  color: $color-error-highlight;
+  font-weight: $font-weight-bold;
+  flex-shrink: 0;
+}
+
+.issueText {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  line-height: 1.6;
+}
+
+.notPlaced {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: $spacing-sm;
+  font-style: italic;
 }
 
 .issuesSection {

@@ -23,24 +23,43 @@ const getDialogueText = (exercise: Exercise, dialogueId: string): string => {
   return dialogue?.text || '';
 };
 
+const splitTextByLineBreak = (text: string, lineBreak?: number[]): string[] => {
+  if (!lineBreak || lineBreak.length === 0) return [text];
+  const breaks = [...lineBreak].sort((a, b) => a - b);
+  const lines: string[] = [];
+  let lastIdx = 0;
+  breaks.forEach(brk => {
+    if (brk > lastIdx && brk <= text.length) {
+      lines.push(text.slice(lastIdx, brk));
+      lastIdx = brk;
+    }
+  });
+  lines.push(text.slice(lastIdx));
+  return lines.filter(l => l.length > 0);
+};
+
 const calculateTextBounds = (
   text: string,
   x: number,
   y: number,
   fontSize: number,
   letterSpacing: number,
-  isVertical: boolean
+  isVertical: boolean,
+  lineBreak?: number[]
 ): TextBounds => {
-  const charCount = text.length;
+  const lines = splitTextByLineBreak(text, lineBreak);
+  const lineCount = lines.length;
+  const maxLineLength = Math.max(...lines.map(l => l.length));
+
   let textWidth: number;
   let textHeight: number;
 
   if (isVertical) {
-    textWidth = fontSize * LINE_HEIGHT_RATIO;
-    textHeight = charCount * (fontSize + letterSpacing);
+    textWidth = lineCount * fontSize * LINE_HEIGHT_RATIO;
+    textHeight = maxLineLength * (fontSize + letterSpacing);
   } else {
-    textWidth = charCount * (fontSize + letterSpacing);
-    textHeight = fontSize * LINE_HEIGHT_RATIO;
+    textWidth = maxLineLength * (fontSize + letterSpacing);
+    textHeight = lineCount * fontSize * LINE_HEIGHT_RATIO;
   }
 
   return {
@@ -71,14 +90,13 @@ const getBubbleBounds = (
 };
 
 const calculateOverflow = (textBounds: TextBounds, bubbleBounds: ReturnType<typeof getBubbleBounds>) => {
-  let overflowLeft = Math.max(0, bubbleBounds.left - textBounds.left);
-  let overflowRight = Math.max(0, textBounds.right - bubbleBounds.right);
-  let overflowTop = Math.max(0, bubbleBounds.top - textBounds.top);
-  let overflowBottom = Math.max(0, textBounds.bottom - bubbleBounds.bottom);
+  const overflowLeft = Math.max(0, bubbleBounds.left - textBounds.left);
+  const overflowRight = Math.max(0, textBounds.right - bubbleBounds.right);
+  const overflowTop = Math.max(0, bubbleBounds.top - textBounds.top);
+  const overflowBottom = Math.max(0, textBounds.bottom - bubbleBounds.bottom);
 
   const maxHorizontalOverflow = Math.max(overflowLeft, overflowRight);
   const maxVerticalOverflow = Math.max(overflowTop, overflowBottom);
-  const maxOverflow = Math.max(maxHorizontalOverflow, maxVerticalOverflow);
 
   const horizontalOverflowRatio = maxHorizontalOverflow / bubbleBounds.width;
   const verticalOverflowRatio = maxVerticalOverflow / bubbleBounds.height;
@@ -89,7 +107,7 @@ const calculateOverflow = (textBounds: TextBounds, bubbleBounds: ReturnType<type
     overflowRight,
     overflowTop,
     overflowBottom,
-    maxOverflow,
+    maxOverflow: Math.max(maxHorizontalOverflow, maxVerticalOverflow),
     totalOverflowRatio
   };
 };
@@ -101,33 +119,27 @@ export const calculateScore = (context: ScoringContext): ScoreResult => {
 
   const readabilityScore = evaluateReadability(exercise, answers);
   items.push(readabilityScore);
-  if (readabilityScore.score < readabilityScore.maxScore) {
-    readabilityScore.issues.forEach(i => problemBubbles.push(i.bubbleId));
-  }
+  readabilityScore.issues.forEach(i => { if (!problemBubbles.includes(i.bubbleId)) problemBubbles.push(i.bubbleId); });
 
   const boundaryScore = evaluateBoundary(exercise, answers, imageWidth, imageHeight);
   items.push(boundaryScore);
-  if (boundaryScore.score < boundaryScore.maxScore) {
-    boundaryScore.issues.forEach(i => problemBubbles.push(i.bubbleId));
-  }
+  boundaryScore.issues.forEach(i => { if (!problemBubbles.includes(i.bubbleId)) problemBubbles.push(i.bubbleId); });
 
   const centeringScore = evaluateCentering(exercise, answers, imageWidth, imageHeight);
   items.push(centeringScore);
-  if (centeringScore.score < centeringScore.maxScore) {
-    centeringScore.issues.forEach(i => problemBubbles.push(i.bubbleId));
-  }
+  centeringScore.issues.forEach(i => { if (!problemBubbles.includes(i.bubbleId)) problemBubbles.push(i.bubbleId); });
 
   const punctuationScore = evaluatePunctuation(exercise, answers);
   items.push(punctuationScore);
-  if (punctuationScore.score < punctuationScore.maxScore) {
-    punctuationScore.issues.forEach(i => problemBubbles.push(i.bubbleId));
-  }
+  punctuationScore.issues.forEach(i => { if (!problemBubbles.includes(i.bubbleId)) problemBubbles.push(i.bubbleId); });
 
   const typographyScore = evaluateTypography(exercise, answers);
   items.push(typographyScore);
-  if (typographyScore.score < typographyScore.maxScore) {
-    typographyScore.issues.forEach(i => problemBubbles.push(i.bubbleId));
-  }
+  typographyScore.issues.forEach(i => { if (!problemBubbles.includes(i.bubbleId)) problemBubbles.push(i.bubbleId); });
+
+  const lineBreakScore = evaluateLineBreak(exercise, answers);
+  items.push(lineBreakScore);
+  lineBreakScore.issues.forEach(i => { if (!problemBubbles.includes(i.bubbleId)) problemBubbles.push(i.bubbleId); });
 
   const totalScore = items.reduce((sum, item) => sum + item.score, 0);
   const maxScore = items.reduce((sum, item) => sum + item.maxScore, 0);
@@ -137,19 +149,38 @@ export const calculateScore = (context: ScoringContext): ScoreResult => {
   if (ratio >= 0.9) level = 'excellent';
   else if (ratio >= 0.7) level = 'good';
 
-  console.log('[Scoring] 评分完成', { totalScore, maxScore, level, problemBubbles });
+  const dialogueIssuesMap = new Map<string, { dialogueId: string; bubbleId: string; issues: string[] }>();
+  answers.forEach(answer => {
+    const key = `${answer.dialogueId}_${answer.bubbleId}`;
+    if (!dialogueIssuesMap.has(key)) {
+      dialogueIssuesMap.set(key, { dialogueId: answer.dialogueId, bubbleId: answer.bubbleId, issues: [] });
+    }
+  });
+
+  items.forEach(item => {
+    item.issues.forEach(issue => {
+      if (issue.dialogueId) {
+        const key = `${issue.dialogueId}_${issue.bubbleId}`;
+        const entry = dialogueIssuesMap.get(key);
+        if (entry) {
+          entry.issues.push(`${item.category}：${issue.message}`);
+        }
+      }
+    });
+  });
 
   return {
     totalScore,
     maxScore,
     level,
     items,
-    problemBubbles: [...new Set(problemBubbles)]
+    problemBubbles: [...new Set(problemBubbles)],
+    dialogueIssues: Array.from(dialogueIssuesMap.values()).filter(d => d.issues.length > 0)
   };
 };
 
 const evaluateReadability = (exercise: Exercise, answers: UserAnswer[]): ScoreItem => {
-  const issues: { bubbleId: string; message: string }[] = [];
+  const issues: { bubbleId: string; dialogueId: string; message: string }[] = [];
   let score = 0;
   const maxScore = exercise.dialogues.length * 5;
 
@@ -163,6 +194,7 @@ const evaluateReadability = (exercise: Exercise, answers: UserAnswer[]): ScoreIt
       score += 1;
       issues.push({
         bubbleId: answer.bubbleId,
+        dialogueId: answer.dialogueId,
         message: '台词与气泡不匹配'
       });
     }
@@ -182,7 +214,7 @@ const evaluateBoundary = (
   imageWidth: number,
   imageHeight: number
 ): ScoreItem => {
-  const issues: { bubbleId: string; message: string }[] = [];
+  const issues: { bubbleId: string; dialogueId: string; message: string }[] = [];
   let score = 0;
   const maxScore = exercise.dialogues.length * 5;
 
@@ -200,7 +232,8 @@ const evaluateBoundary = (
       answer.y,
       answer.fontSize,
       answer.letterSpacing,
-      answer.isVertical
+      answer.isVertical,
+      answer.lineBreak
     );
     const bubbleBounds = getBubbleBounds(bubble, scaleX, scaleY);
     const overflow = calculateOverflow(textBounds, bubbleBounds);
@@ -218,37 +251,20 @@ const evaluateBoundary = (
       score += 5;
     } else if (overflow.totalOverflowRatio <= 0.05) {
       score += 4;
-      issues.push({
-        bubbleId: answer.bubbleId,
-        message: '文字离气泡边缘太近'
-      });
+      issues.push({ bubbleId: answer.bubbleId, dialogueId: answer.dialogueId, message: '文字离气泡边缘太近' });
     } else if (overflow.totalOverflowRatio <= 0.15) {
       score += 3;
-      issues.push({
-        bubbleId: answer.bubbleId,
-        message: '文字轻微压线'
-      });
+      issues.push({ bubbleId: answer.bubbleId, dialogueId: answer.dialogueId, message: '文字轻微压线' });
     } else if (overflow.totalOverflowRatio <= 0.3) {
       score += 2;
-      issues.push({
-        bubbleId: answer.bubbleId,
-        message: '文字明显超出气泡'
-      });
+      issues.push({ bubbleId: answer.bubbleId, dialogueId: answer.dialogueId, message: '文字明显超出气泡' });
     } else {
       score += 1;
-      issues.push({
-        bubbleId: answer.bubbleId,
-        message: '文字严重超出气泡范围'
-      });
+      issues.push({ bubbleId: answer.bubbleId, dialogueId: answer.dialogueId, message: '文字严重超出气泡范围' });
     }
   });
 
-  return {
-    category: '边界检测',
-    score,
-    maxScore,
-    issues
-  };
+  return { category: '边界检测', score, maxScore, issues };
 };
 
 const evaluateCentering = (
@@ -257,7 +273,7 @@ const evaluateCentering = (
   imageWidth: number,
   imageHeight: number
 ): ScoreItem => {
-  const issues: { bubbleId: string; message: string }[] = [];
+  const issues: { bubbleId: string; dialogueId: string; message: string }[] = [];
   let score = 0;
   const maxScore = exercise.dialogues.length * 5;
 
@@ -275,7 +291,8 @@ const evaluateCentering = (
       answer.y,
       answer.fontSize,
       answer.letterSpacing,
-      answer.isVertical
+      answer.isVertical,
+      answer.lineBreak
     );
     const bubbleBounds = getBubbleBounds(bubble, scaleX, scaleY);
 
@@ -296,41 +313,24 @@ const evaluateCentering = (
       score += 5;
     } else if (totalOffsetRatio <= 0.25) {
       score += 4;
-      issues.push({
-        bubbleId: answer.bubbleId,
-        message: '文字稍有偏移'
-      });
+      issues.push({ bubbleId: answer.bubbleId, dialogueId: answer.dialogueId, message: '文字稍有偏移' });
     } else if (totalOffsetRatio <= 0.5) {
       score += 3;
-      issues.push({
-        bubbleId: answer.bubbleId,
-        message: '文字未在气泡中居中'
-      });
+      issues.push({ bubbleId: answer.bubbleId, dialogueId: answer.dialogueId, message: '文字未在气泡中居中' });
     } else if (totalOffsetRatio <= 0.75) {
       score += 2;
-      issues.push({
-        bubbleId: answer.bubbleId,
-        message: '文字偏离中心较多'
-      });
+      issues.push({ bubbleId: answer.bubbleId, dialogueId: answer.dialogueId, message: '文字偏离中心较多' });
     } else {
       score += 1;
-      issues.push({
-        bubbleId: answer.bubbleId,
-        message: '文字严重偏离中心'
-      });
+      issues.push({ bubbleId: answer.bubbleId, dialogueId: answer.dialogueId, message: '文字严重偏离中心' });
     }
   });
 
-  return {
-    category: '气泡居中',
-    score,
-    maxScore,
-    issues
-  };
+  return { category: '气泡居中', score, maxScore, issues };
 };
 
 const evaluatePunctuation = (exercise: Exercise, answers: UserAnswer[]): ScoreItem => {
-  const issues: { bubbleId: string; message: string }[] = [];
+  const issues: { bubbleId: string; dialogueId: string; message: string }[] = [];
   let score = 0;
   const maxScore = exercise.dialogues.length * 5;
 
@@ -344,23 +344,15 @@ const evaluatePunctuation = (exercise: Exercise, answers: UserAnswer[]): ScoreIt
       score += 5;
     } else {
       score += 2;
-      issues.push({
-        bubbleId: answer.bubbleId,
-        message: '语气符号位置不当'
-      });
+      issues.push({ bubbleId: answer.bubbleId, dialogueId: answer.dialogueId, message: '语气符号位置不当' });
     }
   });
 
-  return {
-    category: '语气符号',
-    score,
-    maxScore,
-    issues
-  };
+  return { category: '语气符号', score, maxScore, issues };
 };
 
 const evaluateTypography = (exercise: Exercise, answers: UserAnswer[]): ScoreItem => {
-  const issues: { bubbleId: string; message: string }[] = [];
+  const issues: { bubbleId: string; dialogueId: string; message: string }[] = [];
   let score = 0;
   const maxScore = exercise.dialogues.length * 10;
 
@@ -372,19 +364,13 @@ const evaluateTypography = (exercise: Exercise, answers: UserAnswer[]): ScoreIte
 
     if (answer.isVertical !== correct.isVertical) {
       itemScore -= 3;
-      issues.push({
-        bubbleId: answer.bubbleId,
-        message: `应为${correct.isVertical ? '竖排' : '横排'}`
-      });
+      issues.push({ bubbleId: answer.bubbleId, dialogueId: answer.dialogueId, message: `应为${correct.isVertical ? '竖排' : '横排'}` });
     }
 
     const fontSizeDiff = Math.abs(answer.fontSize - correct.fontSize);
     if (fontSizeDiff > 4) {
       itemScore -= 3;
-      issues.push({
-        bubbleId: answer.bubbleId,
-        message: `字号建议${correct.fontSize}px`
-      });
+      issues.push({ bubbleId: answer.bubbleId, dialogueId: answer.dialogueId, message: `字号建议${correct.fontSize}px` });
     } else if (fontSizeDiff > 2) {
       itemScore -= 1;
     }
@@ -392,10 +378,7 @@ const evaluateTypography = (exercise: Exercise, answers: UserAnswer[]): ScoreIte
     const letterSpacingDiff = Math.abs(answer.letterSpacing - correct.letterSpacing);
     if (letterSpacingDiff > 3) {
       itemScore -= 3;
-      issues.push({
-        bubbleId: answer.bubbleId,
-        message: `字距建议${correct.letterSpacing}px`
-      });
+      issues.push({ bubbleId: answer.bubbleId, dialogueId: answer.dialogueId, message: `字距建议${correct.letterSpacing}px` });
     } else if (letterSpacingDiff > 1) {
       itemScore -= 1;
     }
@@ -403,36 +386,60 @@ const evaluateTypography = (exercise: Exercise, answers: UserAnswer[]): ScoreIte
     score += Math.max(0, itemScore);
   });
 
-  return {
-    category: '排版审美',
-    score,
-    maxScore,
-    issues
-  };
+  return { category: '排版审美', score, maxScore, issues };
+};
+
+const evaluateLineBreak = (exercise: Exercise, answers: UserAnswer[]): ScoreItem => {
+  const issues: { bubbleId: string; dialogueId: string; message: string }[] = [];
+  let score = 0;
+  const maxScore = exercise.dialogues.length * 5;
+
+  answers.forEach(answer => {
+    const correct = exercise.correctAnswers.find(c => c.dialogueId === answer.dialogueId);
+    if (!correct) return;
+
+    const hasRecommendedBreaks = correct.lineBreak && correct.lineBreak.length > 0;
+    const userHasBreaks = answer.lineBreak && answer.lineBreak.length > 0;
+
+    if (!hasRecommendedBreaks) {
+      score += 5;
+    } else if (hasRecommendedBreaks && !userHasBreaks) {
+      score += 1;
+      issues.push({ bubbleId: answer.bubbleId, dialogueId: answer.dialogueId, message: '长句建议断行但未断行' });
+    } else if (hasRecommendedBreaks && userHasBreaks) {
+      const userBreaks = [...(answer.lineBreak || [])].sort((a, b) => a - b);
+      const correctBreaks = [...(correct.lineBreak || [])].sort((a, b) => a - b);
+      const breaksMatch = userBreaks.length === correctBreaks.length &&
+        userBreaks.every((v, i) => v === correctBreaks[i]);
+
+      if (breaksMatch) {
+        score += 5;
+      } else {
+        score += 3;
+        issues.push({ bubbleId: answer.bubbleId, dialogueId: answer.dialogueId, message: '断行位置与推荐不同' });
+      }
+    } else {
+      score += 4;
+    }
+  });
+
+  return { category: '断行合理', score, maxScore, issues };
 };
 
 export const getScoreColor = (level: string): string => {
   switch (level) {
-    case 'excellent':
-      return '#00B894';
-    case 'good':
-      return '#FDCB6E';
-    case 'improve':
-      return '#FF7675';
-    default:
-      return '#636E72';
+    case 'excellent': return '#00B894';
+    case 'good': return '#FDCB6E';
+    case 'improve': return '#FF7675';
+    default: return '#636E72';
   }
 };
 
 export const getScoreText = (level: string): string => {
   switch (level) {
-    case 'excellent':
-      return '优秀';
-    case 'good':
-      return '良好';
-    case 'improve':
-      return '继续努力';
-    default:
-      return '未评分';
+    case 'excellent': return '优秀';
+    case 'good': return '良好';
+    case 'improve': return '继续努力';
+    default: return '未评分';
   }
 };

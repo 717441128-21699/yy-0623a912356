@@ -484,3 +484,104 @@
     opacity: 0.5;
   }
 }
+
+.lineBreakHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-xs;
+}
+
+.lineBreakToggle {
+  @include button-reset;
+  font-size: $font-size-xs;
+  color: $color-primary;
+  padding: 4rpx $spacing-sm;
+  background: rgba(255, 107, 157, 0.1);
+  border-radius: $radius-sm;
+}
+
+.lineBreakHint {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-bottom: $spacing-sm;
+}
+
+.lineBreakEditor {
+  margin-top: $spacing-sm;
+  padding: $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+}
+
+.lineBreakText {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  line-height: 2.2;
+}
+
+.lineBreakChar {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  cursor: pointer;
+  padding: 2rpx;
+  border-radius: $radius-xs;
+  transition: background $transition-fast;
+
+  &:active {
+    background: rgba(255, 107, 157, 0.2);
+  }
+}
+
+.lineBreakPoint {
+  width: 16rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: $radius-xs;
+  transition: all $transition-fast;
+  margin: 0 -2rpx;
+
+  &.active {
+    width: 24rpx;
+    background: rgba(255, 107, 157, 0.3);
+  }
+
+  &:active {
+    background: rgba(255, 107, 157, 0.15);
+  }
+}
+
+.lineBreakArrow {
+  font-size: 16rpx;
+  color: $color-primary;
+  font-weight: $font-weight-bold;
+}
+
+.lineBreakPreview {
+  margin-top: $spacing-md;
+  padding: $spacing-md;
+  background: $color-bg-card;
+  border-radius: $radius-sm;
+  border-left: 4rpx solid $color-primary;
+}
+
+.lineBreakPreviewLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-bottom: 4rpx;
+}
+
+.lineBreakPreviewText {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.multiLineText {
+  white-space: pre-wrap !important;
+}

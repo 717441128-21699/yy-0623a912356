@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import { UserProgress, ScoreResult } from '@/types';
+import { UserProgress, ScoreResult, ExerciseRecord } from '@/types';
 import { initialUserProgress } from '@/data/userProgress';
 import dayjs from 'dayjs';
 import Taro from '@tarojs/taro';
 
 const STORAGE_KEY_PROGRESS = 'comic_lettering_progress';
+const STORAGE_KEY_RECORDS = 'comic_lettering_records';
 
 const loadProgressFromStorage = (): UserProgress => {
   try {
@@ -37,16 +38,42 @@ const saveProgressToStorage = (progress: UserProgress) => {
   }
 };
 
+const loadRecordsFromStorage = (): ExerciseRecord[] => {
+  try {
+    const data = Taro.getStorageSync(STORAGE_KEY_RECORDS);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('[UserStore] 读取记录存储失败', e);
+  }
+  return [];
+};
+
+const saveRecordsToStorage = (records: ExerciseRecord[]) => {
+  try {
+    Taro.setStorageSync(STORAGE_KEY_RECORDS, JSON.stringify(records));
+  } catch (e) {
+    console.warn('[UserStore] 保存记录存储失败', e);
+  }
+};
+
 interface UserState {
   progress: UserProgress;
   todayCheckedIn: boolean;
   currentExerciseId: string | null;
   lastScore: ScoreResult | null;
+  exerciseRecords: ExerciseRecord[];
   checkIn: () => boolean;
   setCurrentExercise: (id: string) => void;
   setLastScore: (score: ScoreResult) => void;
   completeExercise: (score: number) => void;
   isTodayCheckedIn: () => boolean;
+  addExerciseRecord: (record: Omit<ExerciseRecord, 'id' | 'date'>) => void;
+  getExerciseRecord: (id: string) => ExerciseRecord | undefined;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -54,6 +81,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   todayCheckedIn: false,
   currentExerciseId: null,
   lastScore: null,
+  exerciseRecords: loadRecordsFromStorage(),
 
   checkIn: () => {
     const state = get();
@@ -144,5 +172,22 @@ export const useUserStore = create<UserState>((set, get) => ({
     const state = get();
     const today = dayjs().format('YYYY-MM-DD');
     return state.progress.checkInHistory.includes(today);
+  },
+
+  addExerciseRecord: (record) => {
+    const state = get();
+    const newRecord: ExerciseRecord = {
+      ...record,
+      id: Date.now().toString(),
+      date: dayjs().format('YYYY-MM-DD HH:mm')
+    };
+    const updatedRecords = [newRecord, ...state.exerciseRecords].slice(0, 50);
+    saveRecordsToStorage(updatedRecords);
+    set({ exerciseRecords: updatedRecords });
+    console.log('[UserStore] 练习记录已保存', { id: newRecord.id, score: newRecord.score });
+  },
+
+  getExerciseRecord: (id: string) => {
+    return get().exerciseRecords.find(r => r.id === id);
   }
 }));
