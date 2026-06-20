@@ -1,0 +1,162 @@
+@use '@/styles/variables.scss' as *;
+
+.checkInCard {
+  padding: $spacing-xl;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-xl;
+  box-shadow: 0 8rpx 24rpx rgba(255, 107, 157, 0.25);
+  color: $color-text-white;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -80rpx;
+    right: -80rpx;
+    width: 200rpx;
+    height: 200rpx;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: $radius-round;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -60rpx;
+    left: -60rpx;
+    width: 160rpx;
+    height: 160rpx;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: $radius-round;
+  }
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-lg;
+  position: relative;
+  z-index: 1;
+}
+
+.title {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+}
+
+.streakBadge {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-xs $spacing-md;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: $radius-button;
+}
+
+.streakIcon {
+  font-size: $font-size-lg;
+}
+
+.streakText {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+}
+
+.statsRow {
+  display: flex;
+  gap: $spacing-md;
+  margin-bottom: $spacing-xl;
+  position: relative;
+  z-index: 1;
+}
+
+.statItem {
+  flex: 1;
+  padding: $spacing-md;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: $radius-lg;
+  text-align: center;
+}
+
+.statValue {
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-bold;
+  line-height: 1.2;
+  margin-bottom: $spacing-xs;
+}
+
+.statLabel {
+  font-size: $font-size-xs;
+  opacity: 0.9;
+}
+
+.checkInButton {
+  @include button-reset;
+  width: 100%;
+  height: $button-height-lg;
+  background: $color-text-white;
+  color: $color-primary;
+  border-radius: $radius-button;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  position: relative;
+  z-index: 1;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+
+  &.checked {
+    background: rgba(255, 255, 255, 0.3);
+    color: $color-text-white;
+  }
+}
+
+.weekDays {
+  display: flex;
+  justify-content: space-between;
+  margin-top: $spacing-lg;
+  position: relative;
+  z-index: 1;
+}
+
+.dayItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.dayName {
+  font-size: $font-size-xs;
+  opacity: 0.8;
+}
+
+.dayDot {
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: $radius-round;
+  background: rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.active {
+    background: $color-text-white;
+
+    &::after {
+      content: '✓';
+      font-size: 20rpx;
+      color: $color-primary;
+      font-weight: $font-weight-bold;
+    }
+  }
+
+  &.today {
+    border: 2rpx solid $color-text-white;
+  }
+}

@@ -1,0 +1,121 @@
+@use '@/styles/variables.scss' as *;
+
+.scoreIndicator {
+  padding: $spacing-lg;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+}
+
+.scoreHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-lg;
+}
+
+.scoreValue {
+  font-size: 64rpx;
+  font-weight: $font-weight-bold;
+}
+
+.scoreLevel {
+  padding: $spacing-sm $spacing-lg;
+  border-radius: $radius-button;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-white;
+}
+
+.excellent {
+  background: linear-gradient(135deg, $color-score-excellent 0%, #00A085 100%);
+}
+
+.good {
+  background: linear-gradient(135deg, $color-score-good 0%, #F0B429 100%);
+}
+
+.improve {
+  background: linear-gradient(135deg, $color-score-improve 0%, #E85D5D 100%);
+}
+
+.scoreItems {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.scoreItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.itemLabel {
+  width: 140rpx;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  flex-shrink: 0;
+}
+
+.itemBar {
+  flex: 1;
+  height: 12rpx;
+  background: $color-divider;
+  border-radius: $radius-round;
+  overflow: hidden;
+}
+
+.itemFill {
+  height: 100%;
+  border-radius: $radius-round;
+  transition: width $transition-slow ease;
+}
+
+.itemScore {
+  width: 80rpx;
+  text-align: right;
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+  flex-shrink: 0;
+}
+
+.issuesList {
+  margin-top: $spacing-lg;
+  padding-top: $spacing-lg;
+  border-top: 1rpx solid $color-divider;
+}
+
+.issuesTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+}
+
+.issueItem {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  margin-bottom: $spacing-sm;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.issueIcon {
+  font-size: $font-size-lg;
+  flex-shrink: 0;
+}
+
+.issueText {
+  flex: 1;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: $line-height-normal;
+}

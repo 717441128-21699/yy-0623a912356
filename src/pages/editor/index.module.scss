@@ -1,0 +1,332 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  background: $color-bg-page;
+  display: flex;
+  flex-direction: column;
+}
+
+.canvasContainer {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #2D3436;
+}
+
+.comicCanvas {
+  position: relative;
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.canvasImage {
+  width: 100%;
+  height: auto;
+  display: block;
+  pointer-events: none;
+}
+
+.bubbleLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.bubbleTarget {
+  position: absolute;
+  border: 3rpx dashed $color-primary;
+  border-radius: 24rpx;
+  background: rgba(255, 107, 157, 0.08);
+  transition: all $transition-base;
+
+  &.active {
+    border-color: $color-secondary;
+    border-style: solid;
+    background: rgba(78, 205, 196, 0.15);
+  }
+
+  &.filled {
+    border-color: $color-success;
+    border-style: solid;
+    background: rgba(0, 184, 146, 0.1);
+  }
+
+  &.active.filled {
+    border-color: $color-secondary;
+    background: rgba(78, 205, 196, 0.2);
+  }
+}
+
+.bubbleNumber {
+  position: absolute;
+  top: -20rpx;
+  left: -20rpx;
+  width: 40rpx;
+  height: 40rpx;
+  background: $color-primary;
+  color: $color-text-white;
+  border-radius: $radius-round;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  font-weight: $font-weight-semibold;
+}
+
+.textLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.placedText {
+  position: absolute;
+  padding: 8rpx;
+  text-align: center;
+  pointer-events: auto;
+  transition: all $transition-fast;
+  cursor: move;
+
+  &.selected {
+    outline: 3rpx solid $color-secondary;
+    outline-offset: 4rpx;
+    background: rgba(78, 205, 196, 0.1);
+    border-radius: $radius-sm;
+  }
+}
+
+.textContent {
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+  text-align: center;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.verticalText {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.settingsPanel {
+  background: $color-bg-card;
+  border-top-left-radius: $radius-xl;
+  border-top-right-radius: $radius-xl;
+  padding: $spacing-lg $page-padding calc(env(safe-area-inset-bottom) + #{$spacing-lg});
+  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.1);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-lg;
+}
+
+.panelTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.progress {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.settingGroup {
+  margin-bottom: $spacing-lg;
+}
+
+.settingLabel {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  margin-bottom: $spacing-sm;
+}
+
+.settingOptions {
+  display: flex;
+  gap: $spacing-sm;
+}
+
+.optionBtn {
+  @include button-reset;
+  flex: 1;
+  height: $button-height-md;
+  border-radius: $radius-button;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  background: $color-bg-page;
+  color: $color-text-secondary;
+  transition: all $transition-base;
+
+  &.active {
+    background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+    color: $color-text-white;
+  }
+}
+
+.sliderContainer {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.sliderValue {
+  width: 80rpx;
+  text-align: center;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+}
+
+.slider {
+  flex: 1;
+  height: 8rpx;
+  background: $color-divider;
+  border-radius: $radius-round;
+  position: relative;
+}
+
+.sliderTrack {
+  height: 100%;
+  background: linear-gradient(90deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-round;
+}
+
+.sliderHandle {
+  position: absolute;
+  top: 50%;
+  width: 32rpx;
+  height: 32rpx;
+  background: $color-text-white;
+  border: 4rpx solid $color-primary;
+  border-radius: $radius-round;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.15);
+}
+
+.dialoguesSection {
+  margin-bottom: $spacing-lg;
+}
+
+.dialoguesTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+}
+
+.dialoguesList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.dialogueItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  border: 2rpx solid transparent;
+  transition: all $transition-base;
+
+  &.selected {
+    border-color: $color-secondary;
+    background: rgba(78, 205, 196, 0.1);
+  }
+
+  &.placed {
+    opacity: 0.5;
+  }
+}
+
+.dialogueIndex {
+  width: 48rpx;
+  height: 48rpx;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  color: $color-text-white;
+  border-radius: $radius-round;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  flex-shrink: 0;
+}
+
+.dialogueContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.dialogueText {
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  @include text-ellipsis-multi(1);
+}
+
+.dialogueStatus {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: 4rpx;
+}
+
+.dragHint {
+  font-size: $font-size-xs;
+  color: $color-primary;
+  flex-shrink: 0;
+}
+
+.bottomActions {
+  display: flex;
+  gap: $spacing-md;
+  margin-top: $spacing-md;
+}
+
+.resetBtn {
+  @include button-reset;
+  flex: 1;
+  height: $button-height-lg;
+  border-radius: $radius-button;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  background: $color-bg-page;
+  color: $color-text-secondary;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+}
+
+.submitBtn {
+  @include button-reset;
+  flex: 2;
+  height: $button-height-lg;
+  border-radius: $radius-button;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  color: $color-text-white;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+  }
+}

@@ -1,0 +1,67 @@
+@use '@/styles/variables.scss' as *;
+
+.bubbleCard {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-lg;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+  margin-bottom: $spacing-md;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.bubbleIcon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: $radius-round;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  flex-shrink: 0;
+}
+
+.speech {
+  background: linear-gradient(135deg, $color-primary-light 0%, $color-primary 100%);
+}
+
+.thought {
+  background: linear-gradient(135deg, $color-info 0%, #5B8DEF 100%);
+}
+
+.narration {
+  background: linear-gradient(135deg, $color-secondary 0%, #3DBDB5 100%);
+}
+
+.sound {
+  background: linear-gradient(135deg, $color-accent 0%, #FFD93D 100%);
+}
+
+.bubbleContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.bubbleType {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  margin-bottom: $spacing-xs;
+}
+
+.bubbleText {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+  @include text-ellipsis-multi(2);
+}
+
+.placed {
+  opacity: 0.6;
+  background: $color-bg-hover;
+}
